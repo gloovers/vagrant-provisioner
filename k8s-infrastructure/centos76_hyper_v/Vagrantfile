@@ -6,6 +6,9 @@ Vagrant.configure("2") do |config|
   # number of cluster nodes
   N_NODE = 3
 
+  # number of control-plane nodes
+  N_MASTER = 1
+
   # cluster nodes configuration on VM provider layer 
   NODES_CONFIG = {
       :box => "centos/7",
@@ -46,24 +49,26 @@ Vagrant.configure("2") do |config|
     end
   end
   
-  config.vm.define "kube-master" do |master|
-    master.vm.box = MASTER_CONFIG[:box]
-    master.vm.network "private_network", ip: "172.16.0.10", auto_config: false
-    master.vm.hostname = "kubernetes-master"
-    master.vm.provision "shell", path: "kube_master.sh"
-    master.vm.provider PROVIDER do |master_config|
-      master_config.memory = MASTER_CONFIG[:mem]
-      master_config.cpus = MASTER_CONFIG[:cpu]
-      master_config.vmname = "#{MASTER_CONFIG[:name]}"
+  (1..N_MASTER).each do |i|
+    config.vm.define "kube-master-#{i}" do |master|
+      master.vm.box = MASTER_CONFIG[:box]
+      master.vm.network "private_network", ip: "172.16.0.#{10 + i}", bridge: "NATSwitch"
+      master.vm.hostname = "kubernetes-master"
+      master.vm.provision "shell", path: "kube_master.sh", args: ["172.16.0.#{10 + i}"] 
+      master.vm.provider PROVIDER do |master_config|
+        master_config.memory = MASTER_CONFIG[:mem]
+        master_config.cpus = MASTER_CONFIG[:cpu]
+        master_config.vmname = "#{MASTER_CONFIG[:name]}"
+      end
     end
   end
 
   (1..N_NODE).each do |i|
     config.vm.define "kube-node-#{i}" do |node|
       node.vm.box = NODES_CONFIG[:box]
-      node.vm.network "private_network", ip: "172.16.0.#{100 + i}", auto_config: false
+      node.vm.network "private_network", ip: "172.16.0.#{100 + i}", bridge: "NATSwitch"
       node.vm.hostname = "kubernetes-node-#{i}"
-      node.vm.provision "shell", path: "kube_node.sh"
+      node.vm.provision "shell", path: "kube_node.sh", args: ["172.16.0.#{100 + i}"] 
       node.vm.provider PROVIDER do |node_config|
         node_config.memory = NODES_CONFIG[:mem]
         node_config.cpus = NODES_CONFIG[:cpu]
