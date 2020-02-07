@@ -1,5 +1,7 @@
 #! /bin/bash
 PATH_TO_LAN=/etc/sysconfig/network-scripts/ifcfg-eth0
+FILE_PATH="/etc/fstab"
+
 if grep 'BOOTPROTO' $PATH_TO_LAN | grep 'dhcp' -q
 then
     sudo cat << EOF >$PATH_TO_LAN
@@ -56,4 +58,11 @@ systemctl restart kubelet
 
 yum update -y
 
-kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address
+if grep -q '^/swapfile' ${FILE_PATH}
+then
+  sed -i 's/\/swapfile/#&/' ${FILE_PATH}
+
+fi
+
+swapoff -a
+#kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address
